@@ -4,7 +4,8 @@ West End Food Court (Arendal) -> RSS 2.0
 
 Hamtar https://west-end.se/, plockar ut veckans lunchmeny (en dag per
 textblock) och skriver:
-  docs/feed.xml    RSS-flodet, ett inlagg per dag
+  docs/feed.xml    RSS-flodet med bara dagens meny
+  docs/week.xml    RSS-flodet med hela veckan, mandag forst
   docs/index.html  enkel mobilvanlig sida med veckans meny
   docs/menu.json   historik, sa att aldre dagar ligger kvar i flodet
 
@@ -170,15 +171,18 @@ def pub_datetime(iso: str) -> datetime:
     return datetime.combine(date.fromisoformat(iso), time(7, 0), TZ)
 
 
-def build_rss(items: list[dict], feed_url: str | None) -> str:
-    last = format_datetime(pub_datetime(items[0]["date"])) if items else format_datetime(datetime.now(TZ))
+def build_rss(items: list[dict], feed_url: str | None,
+              title: str = "West End Food Court – Lunch",
+              description: str = "Dagens lunch på West End Food Court, Arendal (inofficiellt flöde)") -> str:
+    newest = max((it["date"] for it in items), default=None)
+    last = format_datetime(pub_datetime(newest)) if newest else format_datetime(datetime.now(TZ))
     out = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
         "<channel>",
-        "<title>West End Food Court – Lunch</title>",
+        f"<title>{xml_escape(title)}</title>",
         f"<link>{SOURCE_URL}</link>",
-        "<description>Dagens lunch på West End Food Court, Arendal (inofficiellt flöde)</description>",
+        f"<description>{xml_escape(description)}</description>",
         "<language>sv-se</language>",
         f"<lastBuildDate>{last}</lastBuildDate>",
         "<ttl>180</ttl>",
@@ -281,6 +285,11 @@ def main() -> int:
 
     store_path.write_text(json.dumps(dict(sorted(store.items())), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     (out / "feed.xml").write_text(build_rss(visible, args.feed_url), encoding="utf-8")
+    week_url = args.feed_url.rsplit("/", 1)[0] + "/week.xml" if args.feed_url else None
+    (out / "week.xml").write_text(
+        build_rss(week, week_url, "West End Food Court – Veckans lunch",
+                  "Veckans lunchmeny på West End Food Court, Arendal, måndag till fredag (inofficiellt flöde)"),
+        encoding="utf-8")
     (out / "index.html").write_text(build_index(week, today, args.feed_url), encoding="utf-8")
 
     print(f"OK: {len(days)} dagar på sidan, {len(visible)} inlägg i flödet ({out}/feed.xml)")

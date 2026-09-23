@@ -8,10 +8,11 @@ Flödet innehåller bara dagens meny (ett inlägg), som byts ut varje vardagsmor
 1. GitHub Actions kör `scrape.py` vardagar kl. ~07:15 och ~10:30.
 2. Skriptet läser sidan, delar upp den per dag och station och skriver till `docs/`:
    - `feed.xml`: RSS-flödet (bara dagens inlägg)
+   - `week.xml`: RSS-flödet med hela veckan, måndag först
    - `index.html`: veckans meny som mobilvänlig sida
    - `menu.json`: historik (45 dagar)
 3. GitHub Pages publicerar `docs/`, och flödet blir åtkomligt på
-   `https://<ditt-användarnamn>.github.io/<reponamn>/feed.xml`
+   `https://<ditt-användarnamn>.github.io/<reponamn>/feed.xml` (idag) och `.../week.xml` (veckan)
 
 ## Sätt upp (ca 5 min)
 
@@ -25,6 +26,7 @@ Flödet innehåller bara dagens meny (ett inlägg), som byts ut varje vardagsmor
 
 ```bash
 pip install -r requirements.txt
+python -m unittest discover -s tests -v
 python scrape.py --html tests/fixture.html --today 2026-09-23 --out /tmp/test
 python scrape.py --out docs --all-week     # live, hela veckan direkt
 ```
