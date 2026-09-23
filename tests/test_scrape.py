@@ -3,6 +3,7 @@ import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +49,38 @@ class FeedsTest(unittest.TestCase):
     def test_week_last_build_date_is_latest_day(self):
         channel = ET.parse(self.out / "week.xml").getroot().find("channel")
         self.assertTrue(channel.findtext("lastBuildDate").startswith("Fri, 25 Sep 2026"))
+
+
+class RetryTest(unittest.TestCase):
+    """west-end.se skickar ibland en sida utan meny till GitHubs servrar."""
+
+    def setUp(self):
+        sys.path.insert(0, str(ROOT))
+        import scrape
+        self.scrape = scrape
+        self.page = (ROOT / "tests" / "fixture.html").read_text(encoding="utf-8")
+        self.today = __import__("datetime").date(2026, 9, 23)
+
+    def test_retries_when_page_has_no_menu(self):
+        with mock.patch.object(self.scrape, "fetch", side_effect=["<html></html>", self.page]), \
+                mock.patch.object(self.scrape.timer, "sleep") as sleep:
+            days, price = self.scrape.fetch_menu(self.today, attempts=3, delay=30)
+        self.assertEqual(len(days), 4)
+        sleep.assert_called_once_with(30)
+
+    def test_retries_on_network_error(self):
+        err = self.scrape.requests.ConnectionError("nere")
+        with mock.patch.object(self.scrape, "fetch", side_effect=[err, self.page]), \
+                mock.patch.object(self.scrape.timer, "sleep"):
+            days, _ = self.scrape.fetch_menu(self.today, attempts=3, delay=30)
+        self.assertEqual(len(days), 4)
+
+    def test_gives_up_after_all_attempts(self):
+        with mock.patch.object(self.scrape, "fetch", return_value="<html></html>") as fetch, \
+                mock.patch.object(self.scrape.timer, "sleep"):
+            days, _ = self.scrape.fetch_menu(self.today, attempts=3, delay=30)
+        self.assertEqual(days, [])
+        self.assertEqual(fetch.call_count, 3)
 
 
 if __name__ == "__main__":

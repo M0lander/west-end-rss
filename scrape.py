@@ -21,6 +21,7 @@ import argparse
 import json
 import re
 import sys
+import time as timer  # "time" upptas av datetime.time
 from datetime import date, datetime, time, timedelta
 from email.utils import format_datetime
 from html import escape as html_escape
@@ -246,6 +247,24 @@ def fetch(url: str) -> str:
     return r.text
 
 
+def fetch_menu(today: date, attempts: int = 3, delay: float = 30) -> tuple[list[dict], str | None]:
+    """Hamtar och tolkar sidan. Forsoker igen om sidan saknar meny eller natet felar
+    (west-end.se skickar ibland en sida utan meny till GitHubs servrar)."""
+    for attempt in range(1, attempts + 1):
+        try:
+            days, price = parse_menu(fetch(SOURCE_URL), today)
+        except requests.RequestException as e:
+            if attempt == attempts:
+                raise
+            print(f"Forsok {attempt}: {e}. Nytt forsok om {delay:g} s.", file=sys.stderr)
+        else:
+            if days or attempt == attempts:
+                return days, price
+            print(f"Forsok {attempt}: inga dagar pa sidan. Nytt forsok om {delay:g} s.", file=sys.stderr)
+        timer.sleep(delay)
+    return [], None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--html", help="las HTML fran fil i stallet for att hamta sidan")
@@ -256,9 +275,10 @@ def main() -> int:
     args = ap.parse_args()
 
     today = date.fromisoformat(args.today) if args.today else datetime.now(TZ).date()
-    page = Path(args.html).read_text(encoding="utf-8") if args.html else fetch(SOURCE_URL)
-
-    days, price = parse_menu(page, today)
+    if args.html:
+        days, price = parse_menu(Path(args.html).read_text(encoding="utf-8"), today)
+    else:
+        days, price = fetch_menu(today)
     if not days:
         print("FEL: hittade inga dagar på sidan. Har layouten ändrats? Flödet lämnas orört.", file=sys.stderr)
         return 1
