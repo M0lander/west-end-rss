@@ -276,6 +276,8 @@ def main() -> int:
 
     visible = [v for k, v in store.items() if args.all_week or k <= today.isoformat()]
     visible.sort(key=lambda v: v["date"], reverse=True)
+    if not args.all_week:
+        visible = visible[:1]  # bara dagens meny (eller senaste dagen om dagens inte finns an)
 
     store_path.write_text(json.dumps(dict(sorted(store.items())), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     (out / "feed.xml").write_text(build_rss(visible, args.feed_url), encoding="utf-8")

@@ -1,13 +1,13 @@
 # West End Lunch → RSS
 
 Inofficiellt RSS-flöde för lunchmenyn på [West End Food Court, Arendal](https://west-end.se/).
-Ett inlägg per dag, som dyker upp i flödet samma morgon.
+Flödet innehåller bara dagens meny (ett inlägg), som byts ut varje vardagsmorgon.
 
 ## Så funkar det
 
 1. GitHub Actions kör `scrape.py` vardagar kl. ~07:15 och ~10:30.
 2. Skriptet läser sidan, delar upp den per dag och station och skriver till `docs/`:
-   - `feed.xml`: RSS-flödet
+   - `feed.xml`: RSS-flödet (bara dagens inlägg)
    - `index.html`: veckans meny som mobilvänlig sida
    - `menu.json`: historik (45 dagar)
 3. GitHub Pages publicerar `docs/`, och flödet blir åtkomligt på
